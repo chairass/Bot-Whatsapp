@@ -1,3 +1,5 @@
+const { loadCommonFunctions } = require(".../utils/loadCommonFunctions");
+
 exports.onMessagesUpsert = async ({socket, messages}) => {
     if(!messages.length){
         return;
