@@ -4,7 +4,9 @@ const { resolve } = require("path");// Importa a função 'resolve' do módulo '
 const readline = require("readline");// Importa o módulo 'readline' para entrada de dados via terminal
 const { text } = require("stream/consumers");// Importa 'text' do módulo 'stream/consumers' (aparentemente não está sendo utilizado)
 const {writeFile} = require("fs/promises");
-const { TEMP_DIR } = require("../config");
+const { TEMP_DIR, COMMAND_DIR } = require("../config");
+// Importa o módulo 'fs' para manipulação de arquivos
+const fs = require("fs");
 
 // Exporta uma função que faz uma pergunta no terminal e retorna a resposta como Promise
 exports.question = (message) => {
@@ -95,6 +97,11 @@ exports.splitByCharacters = (str, characters) => {
         .filter(Boolean);
 };
 
+exports.onlyLetterAndNumbers = (text) => {
+    return text.replace(/[^a-zA-Z0-9]/g, ""); // Remove tudo que não for letra ou número
+};
+
+
 // Exporta a função formatCommand, que formata um comando de texto:
 // remove acentos, caracteres especiais, deixa em minúsculas e mantém apenas letras e números
 exports.formatCommand = (text) => {
@@ -106,7 +113,9 @@ exports.formatCommand = (text) => {
 
 // Exporta a função que remove acentos e caracteres especiais usando normalização
 exports.removeAccentsAndSpecialCharacters = (text) => {
-    if (!text) return ""; // Se o texto for nulo ou indefinido, retorna string vazia
+    if (!text) {
+        return ""; // Se o texto for nulo ou indefinido, retorna string vazia
+    }
 
     // Aplica a normalização "NFD" que separa letras de seus acentos
     // Em seguida remove todos os caracteres de acentuação com regex
@@ -145,3 +154,59 @@ exports.download = async (webMessage, fileName, context, extesion) => {
 
     return filePath; 
 };
+
+exports.findCommandImport = (commandName) => {
+    const command = this.readCommandImports();
+
+    let typeReturn = "";
+    let targetCommandReturn = null;
+
+    for (const [type, commands] of Object.entries(command)) {
+        if (!commands.length) {continue; 
+        }// Se não houver comandos, pula para o próximo tipo
+
+        const targetCommand =commands.fimd ((cmd) => 
+            cmd.commands.map((cmd) => this.formatCommand(cmd)).includes(commandName)
+        );
+
+        if (targetCommand) {
+            typeReturn = type;
+            targetCommandReturn = targetCommand;
+            break; // Sai do loop se encontrar o comando
+        }
+    }
+
+    return {
+        type: typeReturn,
+        command: targetCommandReturn,
+    };
+};
+
+exports.readCommandImports = () => {
+    const subdirectories = fs
+        .readdirSync(COMMAND_DIR, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
+
+        const commandImports = {};
+
+        for (const subdir of subdirectories) {
+            const subdirectoryPath = path.join(COMMAND_DIR, subdir);
+            // Lê todos os arquivos dentro do diretório especificado
+            const files = fs
+                .readdirSync(subdirectoryPath) // Lê os nomes dos arquivos de forma síncrona no caminho 'subdirectoryPath'
+                .filter(
+                    (file) => 
+                        // Filtra para remover arquivos que começam com "_" (geralmente usados como auxiliares ou privados)
+                        !file.startsWith("_") && 
+                        // Mantém apenas os arquivos que terminam com ".js" ou ".ts" (JavaScript ou TypeScript)
+                        (file.endsWith(".js") || file.endsWith(".ts"))
+                  );    
+          
+            commandImports[subdir] = files;
+            }
+
+            return commandImports; 
+};
+
+
