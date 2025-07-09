@@ -1,7 +1,8 @@
-const { connect } = require("./utils/connection");
+const { connect } = require("../utils/connection");
+const { load } = require("../utils/load");
 
-async function start(params) {
-    const socket = await connect();
+async function start() {
+   const socket = await connect();
 
     load(socket);
 }

@@ -10,7 +10,7 @@ exports.connect = async () => {
 
     const { version } = await fetchLatestBaileysVersion();
 
-    const sock = makeWASocket({
+    const socket = makeWASocket({
         version,
         auth: state,
         printQRInTerminal: false,
@@ -19,7 +19,7 @@ exports.connect = async () => {
         markOnlineOnConnect: true,
     });
 
-    if(!Socket.authState.creds.registered){
+    if(!socket.authState.creds.registered){
        const phoneNumber = await question("Informe o seu numero de telefone: "); 
 
        if (!phoneNumber){
