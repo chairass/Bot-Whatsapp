@@ -28,7 +28,11 @@ exports.extractDataFromMessage = (webMessage) => {
   const videoTextMessage = webMessage.message?.videoMessage?.caption;// Legenda de vídeo
 
   // Seleciona o primeiro texto disponível entre as opções acima
-  const fullMessage = textMessage || extendedTexMessage || imageTextMessage || videoTextMessage;
+  const fullMessage = 
+     textMessage ||
+     extendedTexMessage || 
+     imageTextMessage || 
+     videoTextMessage;
 
 
   
