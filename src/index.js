@@ -1,5 +1,5 @@
-const { connect } = require("../utils/connection");
-const { load } = require("../utils/load");
+import { connect } from "./connection";
+import { load } from "./loader";
 
 async function start() {
    const socket = await connect();
