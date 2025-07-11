@@ -1,14 +1,13 @@
 const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 const path = require("path");
-const { resolve } = require("path");// Importa a função 'resolve' do módulo 'path'
-const readline = require("readline");// Importa o módulo 'readline' para entrada de dados via terminal
-const { text } = require("stream/consumers");// Importa 'text' do módulo 'stream/consumers' (aparentemente não está sendo utilizado)
-const {writeFile} = require("fs/promises");
+const { resolve } = require("path"); // Importa a função 'resolve' do módulo 'path'
+const readline = require("readline"); // Importa o módulo 'readline' para entrada de dados via terminal
+const { text } = require("stream/consumers"); // Importa 'text' do módulo 'stream/consumers' (aparentemente não está sendo utilizado)
+const { writeFile } = require("fs/promises");
 const { TEMP_DIR, COMMAND_DIR } = require("../config");
-// Importa o módulo 'fs' para manipulação de arquivos
-const fs = require("fs");
+const fs = require("fs"); // Importa o módulo 'fs' para manipulação de arquivos
 
-// Exporta uma função que faz uma pergunta no terminal e retorna a resposta como Promise
+// Faz uma pergunta no terminal e retorna a resposta como uma Promise
 exports.question = (message) => {
     const rl = readline.createInterface({
         input: process.stdin,
@@ -18,61 +17,58 @@ exports.question = (message) => {
     return new Promise((resolve) => rl.question(message, resolve));
 };
 
-// Exporta uma função que remove todos os caracteres que não forem números de uma string
+// Remove todos os caracteres que não forem números de uma string
 exports.onlyNumber = (text) => text.replace(/[^0-9]/g, "");
 
-// Exporta uma função que extrai informações de uma mensagem recebida via Web (por exemplo, no WhatsApp)
+// Extrai informações relevantes da mensagem recebida
 exports.extractDataFromMessage = (webMessage) => {
-  const textMessage = webMessage.message?.conversation;  // Texto simples da mensagem
-  const extendedTexMessage = webMessage.message?.extendedTexMessage;// Mensagem estendida (ex: resposta a outra mensagem)
-  const extendedTexMessageText = extendedTexMessage?.text;// Texto da mensagem estendida
-  const imageTextMessage = webMessage.message?.imageMessage?.caption;// Legenda de imagem
-  const videoTextMessage = webMessage.message?.videoMessage?.caption;// Legenda de vídeo
+    const textMessage = webMessage.message?.conversation;
+    const extendedTextMessage = webMessage.message?.extendedTextMessage;
+    const extendedTextMessageText = extendedTextMessage?.text;
+    const imageTextMessage = webMessage.message?.imageMessage?.caption;
+    const videoTextMessage = webMessage.message?.videoMessage?.caption;
 
-  // Seleciona o primeiro texto disponível entre as opções acima
-  const fullMessage = 
-     textMessage ||
-     extendedTexMessage || 
-     imageTextMessage || 
-     videoTextMessage;
+    // Seleciona o primeiro texto disponível entre os tipos
+    const fullMessage =
+        textMessage ||
+        extendedTextMessageText ||
+        imageTextMessage ||
+        videoTextMessage;
 
+    // Retorna estrutura padrão se não houver texto
+    if (!fullMessage) {
+        return {
+            remoteJid: null,
+            userJid: null,
+            prefix: null,
+            commandName: null,
+            isReply: null,
+            replyJid: null,
+            args: [],
+        };
+    }
 
-  
-  // Se não houver mensagem, retorna objeto com dados vazios
-  if (!fullMessage){
-    return{
-        remoteJid: null,
-        userJid: null,
-        prefix: null,
-        commandName: null, 
-        isReply: null,
-        replyJid: null,
-        args: [],
-    };
-  }
+    // Verifica se é uma resposta (reply)
+    const isReply =
+        !!extendedTextMessage && !!extendedTextMessage.contextInfo?.quotedMessage;
 
-   // Verifica se a mensagem é uma resposta (reply)
-  const isReply = 
-    !!extendedTexMessage && !!extendedTexMessage.contextoInfo?.quotedMessage;
+    // JID da mensagem que foi respondida
+    const replyJid = isReply && extendedTextMessage.contextInfo?.participant
+        ? extendedTextMessage.contextInfo.participant
+        : null;
 
-     // Extrai o JID da mensagem que foi respondida (caso seja reply)
-    const replyJid = !!extendedTexMessage && !!extendedTexMessage.contextoInfo?.participant
-    ? extendedTexMessage.contextoInfo.participant
-    : null;
+    // JID do remetente (remove sufixos tipo ":1", ":12")
+    const userJid = webMessage?.key?.participant?.replace(/:[0-9]+/g, "");
 
-      // Extrai o JID do usuário que enviou a mensagem, removendo sufixos como ':1' ou ':12'
-    const userJid = webMessage?.key?.participant?.replace(/:[0-9][0-9]|:[0-9]/g, "");
-
-    // Separa a mensagem por espaços: o primeiro item é o comando, o resto são os argumentos
+    // Divide mensagem em comando e argumentos
     const [command, ...args] = fullMessage.split(" ");
     const prefix = command.charAt(0);
 
-     // Remove o prefixo do comando para obter apenas o nome do comando
-    const commandWithoutPrefix = command.replace(new RegExp(`^[${PREFIX}]+`));// IMPORTANTE: 'PREFIX' precisa estar definido no escopo
+    // Remove o prefixo (ex: !comando → comando)
+    const commandWithoutPrefix = command.replace(new RegExp(`^[${prefix}]+`), "");
 
-
-    // Retorna os dados extraídos da mensagem
-    return{
+    // Retorna todos os dados extraídos
+    return {
         remoteJid: webMessage?.key?.remoteJid,
         prefix,
         userJid,
@@ -83,60 +79,56 @@ exports.extractDataFromMessage = (webMessage) => {
     };
 };
 
-// Exporta função que divide uma string com base em caracteres específicos
+// Divide string por múltiplos caracteres separadores
 exports.splitByCharacters = (str, characters) => {
-    // Escapa o caractere '\' na lista de separadores
-    characters = characters.map((char) => (char = "\\" ? "\\\\" : char));
-     // Cria uma expressão regular com os separadores fornecidos
+    characters = characters.map((char) => (char === "\\" ? "\\\\" : char));
     const regex = new RegExp(`[${characters.join("")}]`);
 
-     // Divide a string com base no regex, remove espaços e strings vazias
     return str
         .split(regex)
         .map((str) => str.trim())
         .filter(Boolean);
 };
 
+// Remove todos os caracteres que não sejam letras ou números
 exports.onlyLetterAndNumbers = (text) => {
-    return text.replace(/[^a-zA-Z0-9]/g, ""); // Remove tudo que não for letra ou número
+    return text.replace(/[^a-zA-Z0-9]/g, "");
 };
 
-
-// Exporta a função formatCommand, que formata um comando de texto:
-// remove acentos, caracteres especiais, deixa em minúsculas e mantém apenas letras e números
+// Formata comando: tira acento, caracteres especiais, espaços e letras maiúsculas
 exports.formatCommand = (text) => {
-    return this.onlyLetterAndNumbers(// Mantém apenas letras e números
-        this.removeAccentsAndSpecialCharacters( // Remove acentos e caracteres especiais
-            text.toLocaleLowerCase().trim())// Converte para minúsculo e remove espaços em branco nas extremidades
+    return this.onlyLetterAndNumbers(
+        this.removeAccentsAndSpecialCharacters(
+            text.toLocaleLowerCase().trim()
+        )
     );
 };
 
-// Exporta a função que remove acentos e caracteres especiais usando normalização
+// Remove acentos e caracteres especiais
 exports.removeAccentsAndSpecialCharacters = (text) => {
-    if (!text) {
-        return ""; // Se o texto for nulo ou indefinido, retorna string vazia
-    }
+    if (!text) return "";
 
-    // Aplica a normalização "NFD" que separa letras de seus acentos
-    // Em seguida remove todos os caracteres de acentuação com regex
-    return text.normalizer("NFD").replace(/[\u0300-\u036f]/g, "");
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
+// Verifica se a mensagem é de um determinado tipo (imagem, vídeo, etc)
 exports.baileysIs = (webMessage, context) => {
-   return !!this.getContent(webMessage, context);
+    return !!this.getContent(webMessage, context);
 };
 
+// Extrai o conteúdo da mensagem do tipo especificado
 exports.getContent = (webMessage, context) => {
-    return(
+    return (
         !!webMessage.message?.[`${context}Message`] ||
-        !!webMessage.message?.extendedTexMessage?.contextInfo?.quotedMessage?.[`${context}Message`]
+        !!webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage?.[`${context}Message`]
     );
-}
+};
 
-exports.download = async (webMessage, fileName, context, extesion) => {
+// Faz o download de um conteúdo (imagem, vídeo, sticker) e salva em arquivo temporário
+exports.download = async (webMessage, fileName, context, extension) => {
     const content = this.getContent(webMessage, context);
 
-    if(!content){
+    if (!content) {
         return null;
     }
 
@@ -145,16 +137,16 @@ exports.download = async (webMessage, fileName, context, extesion) => {
     let buffer = Buffer.from([]);
 
     for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk])
+        buffer = Buffer.concat([buffer, chunk]);
     }
 
-    const filePath = path.resolve(TEMP_DIR `${fileName}.${extension}`);  
-
+    const filePath = path.resolve(TEMP_DIR, `${fileName}.${extension}`);
     await writeFile(filePath, buffer);
 
-    return filePath; 
+    return filePath;
 };
 
+// Procura um comando dentro dos diretórios de comandos importados
 exports.findCommandImport = (commandName) => {
     const command = this.readCommandImports();
 
@@ -162,17 +154,16 @@ exports.findCommandImport = (commandName) => {
     let targetCommandReturn = null;
 
     for (const [type, commands] of Object.entries(command)) {
-        if (!commands.length) {continue; 
-        }// Se não houver comandos, pula para o próximo tipo
+        if (!commands.length) continue;
 
-        const targetCommand =commands.fimd ((cmd) => 
-            cmd.commands.map((cmd) => this.formatCommand(cmd)).includes(commandName)
+        const targetCommand = commands.find((cmd) =>
+            cmd.commands.map((c) => this.formatCommand(c)).includes(commandName)
         );
 
         if (targetCommand) {
             typeReturn = type;
             targetCommandReturn = targetCommand;
-            break; // Sai do loop se encontrar o comando
+            break;
         }
     }
 
@@ -182,31 +173,28 @@ exports.findCommandImport = (commandName) => {
     };
 };
 
+// Lê os comandos organizados por subdiretórios no diretório de comandos
 exports.readCommandImports = () => {
     const subdirectories = fs
         .readdirSync(COMMAND_DIR, { withFileTypes: true })
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => dirent.name);
 
-        const commandImports = {};
+    const commandImports = {};
 
-        for (const subdir of subdirectories) {
-            const subdirectoryPath = path.join(COMMAND_DIR, subdir);
-            // Lê todos os arquivos dentro do diretório especificado
-            const files = fs
-                .readdirSync(subdirectoryPath) // Lê os nomes dos arquivos de forma síncrona no caminho 'subdirectoryPath'
-                .filter(
-                    (file) => 
-                        // Filtra para remover arquivos que começam com "_" (geralmente usados como auxiliares ou privados)
-                        !file.startsWith("_") && 
-                        // Mantém apenas os arquivos que terminam com ".js" ou ".ts" (JavaScript ou TypeScript)
-                        (file.endsWith(".js") || file.endsWith(".ts"))
-                  );    
-          
-            commandImports[subdir] = files;
-            }
+    for (const subdir of subdirectories) {
+        const subdirectoryPath = path.join(COMMAND_DIR, subdir);
 
-            return commandImports; 
+        const files = fs
+            .readdirSync(subdirectoryPath)
+            .filter(
+                (file) =>
+                    !file.startsWith("_") &&
+                    (file.endsWith(".js") || file.endsWith(".ts"))
+            );
+
+        commandImports[subdir] = files;
+    }
+
+    return commandImports;
 };
-
-
