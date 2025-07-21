@@ -172,7 +172,15 @@ exports.findCommandImport = (commandName) => {
         command: targetCommandReturn,
     };
 };
-
+// Verifica se um arquivo ou diretório existe
+exports.fileExists = (path) => {
+    try {
+        fs.accessSync(path, fs.constants.F_OK);
+        return true;
+    } catch (err) {
+        return false;
+    }
+};
 // Lê os comandos organizados por subdiretórios no diretório de comandos
 exports.readCommandImports = () => {
     const subdirectories = fs
@@ -193,7 +201,12 @@ exports.readCommandImports = () => {
                     (file.endsWith(".js") || file.endsWith(".ts"))
             );
 
-        commandImports[subdir] = files;
+        // Aqui agora carrega os comandos de verdade
+        commandImports[subdir] = files.map((file) => {
+            const fullPath = path.join(subdirectoryPath, file);
+            const commandModule = require(fullPath);
+            return commandModule;
+        });
     }
 
     return commandImports;

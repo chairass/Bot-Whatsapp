@@ -4,7 +4,24 @@ const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion,
 // Módulos nativos e de terceiros
 const path = require("path");// Manipulação de caminhos
 const pino = require('pino');// Logger leve para Node.js
-const { question, onlyNumber } = require('.');// Funções auxiliares importadas do módulo local (presumivelmente pergunta e sanitização do número)
+//const { question, onlyNumber } = require('.');// Funções auxiliares importadas do módulo local (presumivelmente pergunta e sanitização do número)
+const { readline } = require('readline');// Módulo para ler entradas do terminal
+
+// Função auxiliar para perguntar algo no terminal
+const question = (query) => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => rl.question(query, (ans) => {
+    rl.close();
+    resolve(ans);
+  }));
+};
+
+// Remove tudo que não for número
+const onlyNumber = (text) => text.replace(/\D/g, '');
 
 // Exporta a função connect
 exports.connect = async () => {    
