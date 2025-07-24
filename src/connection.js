@@ -1,10 +1,12 @@
 // Importa funções e constantes da biblioteca Baileys
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, decodeSyncdSnapshot } = require('@whiskeysockets/baileys');
-
+require('dotenv').config();
 // Módulos nativos e de terceiros
 const path = require("path");// Manipulação de caminhos
 const pino = require('pino');// Logger leve para Node.js
-const { question, onlyNumber } = require('.');// Funções auxiliares importadas do módulo local (presumivelmente pergunta e sanitização do número)
+
+// Remove tudo que não for número
+const onlyNumber = (text) => text.replace(/\D/g, '');
 
 // Exporta a função connect
 exports.connect = async () => {    
@@ -29,7 +31,7 @@ exports.connect = async () => {
     // Verifica se o número ainda não está registrado
     if(!socket.authState.creds.registered){
        // Solicita ao usuário o número de telefone 
-       const phoneNumber = await question("Informe o seu numero de telefone: "); 
+       const phoneNumber = process.env.NUMERO ; 
 
        // Verifica se foi fornecido um número
        if (!phoneNumber){

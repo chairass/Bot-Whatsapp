@@ -1,4 +1,3 @@
-const { InvalidParameterError } = require("../errors/InvalidParameterError");
 const { verifyPrefix, hasTypeOrCommand } = require("../middlewares");
 const { checkPermission } = require("../middlewares/checkPermission");
 const { 
@@ -7,7 +6,7 @@ const {
     InvalidParameterError, 
 } = require("../errors")
 
-const { findCommandImport } = require("../commands/findCommandImport");
+const { findCommandImport } = require(".");
 
 exports.dynamicCommand = async (paramsHandler) => {
     const { commandName, prefix, sendWarningReply, sendErrorReply } = 
