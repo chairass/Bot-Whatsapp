@@ -49,7 +49,8 @@ exports.connect = async () => {
 
             // Verifica se a sessão ainda precisa ser pareada
             if (!socket.authState.creds.registered && socket.user) {
-                try {
+                try { 
+                    
                     const phoneNumber = await question("📱 Digite o número de telefone para pareamento (com DDD): ");
 
                     if (!phoneNumber || !onlyNumber(phoneNumber)) {
