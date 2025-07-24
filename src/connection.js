@@ -25,54 +25,66 @@ const onlyNumber = (text) => text.replace(/\D/g, '');
 
 // Exporta a função connect
 exports.connect = async () => {    
-    // Obtém o estado de autenticação usando múltiplos arquivos para armazenamento
     const { state, saveCreds } = await useMultiFileAuthState(
-        path.resolve(__dirname, '..', 'assets', 'auth', 'baileys')// Caminho para salvar os arquivos de autenticação
+        path.resolve(__dirname, '..', 'assets', 'auth', 'baileys')
     );
 
-     // Busca a versão mais recente da API do WhatsApp suportada
     const { version } = await fetchLatestBaileysVersion();
 
-     // Cria o socket de conexão com o WhatsApp
     const socket = makeWASocket({
-        version,// Versão da API
-        auth: state,// Estado de autenticação
-        printQRInTerminal: false,// Desabilita a exibição do QR code no terminal
-        logger: pino ({level: "error"}),// Configura o logger com nível de erro
-        browser: ["Chrome (Linux)", "", ""],// Emula um navegador específico
-        markOnlineOnConnect: true,// Marca o usuário como online ao conectar
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        logger: pino({ level: "error" }),
+        browser: ["Chrome (Linux)", "", ""],
+        markOnlineOnConnect: true,
     });
 
-    // Verifica se o número ainda não está registrado
-    if(!socket.authState.creds.registered){
-       // Solicita ao usuário o número de telefone 
-       const phoneNumber = process.env.NUMERO ; 
+    // ✅ ✅ Apenas aqui lidamos com conexão e pareamento
+    socket.ev.on("connection.update", async (update) => {
+        const { connection, lastDisconnect } = update;
 
-       // Verifica se foi fornecido um número
-       if (!phoneNumber){
-        throw new Error("Numero de telefone inválido")// Lança erro se o número for inválido
-       }
+        if (connection === "open") {
+            console.log("🟢 Conexão com o WhatsApp estabelecida com sucesso!");
 
-       // Solicita o código de pareamento com o WhatsApp
-       const code = await socket.requestPairingCode(onlyNumber(phoneNumber));// Sanitiza o número antes de enviar
+            // Verifica se a sessão ainda precisa ser pareada
+            if (!socket.authState.creds.registered && socket.user) {
+                try {
+                    const phoneNumber = await question("📱 Digite o número de telefone para pareamento (com DDD): ");
 
-       // Exibe o código de pareamento no terminal
-       console.log(`Código de pareamento: ${code}`);
-    }
+                    if (!phoneNumber || !onlyNumber(phoneNumber)) {
+                        throw new Error("❌ Número de telefone inválido.");
+                    }
 
-    // Evento que lida com atualizações de conexão
-    socket.ev.on("connection.update", (update) =>{
-         const { connection, lastDisconnect } = update;
-
-         if(connection == "close"){
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
-            if(shouldReconnect){
-                this.connect(); //caso o IF acima seja verdadeiro, vai realizar a conexão novamente  
+                    const code = await socket.requestPairingCode(onlyNumber(phoneNumber));
+                    console.log(`📲 Código de pareamento gerado: ${code}`);
+                } catch (err) {
+                    console.error("❌ Erro ao gerar código de pareamento:", err);
+                }
+            } else {
+                console.log("✅ Sessão já registrada, pareamento não necessário.");
             }
-         }
+        }
+
+
+        if (connection === "close") {
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
+            console.log("🔴 Conexão encerrada:", lastDisconnect?.error?.output);
+
+            if (shouldReconnect) {
+                console.log("🔁 Tentando reconectar...");
+                exports.connect();
+            } else {
+                console.log("🔒 Sessão encerrada, é necessário parear novamente.");
+            }
+        }
     });
 
-    // Evento que escuta atualizações das credenciais e as salva
+
+    // Salva credenciais atualizadas
     socket.ev.on('creds.update', saveCreds);
+
+    return socket;
 };
+
